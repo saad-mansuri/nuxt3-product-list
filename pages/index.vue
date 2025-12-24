@@ -30,10 +30,10 @@
       <!-- Search & Filter -->
       <div class="flex justify-end mb-8">
         <div
-          class="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-xl shadow-sm w-fit md:w-auto w-full"
+          class="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl shadow-sm w-full lg:w-auto"
         >
           <!-- Search Input -->
-          <div class="relative w-64">
+          <div class="relative w-full sm:w-64">
             <input
               v-model="searchProductsQuery"
               type="text"
@@ -60,11 +60,34 @@
             v-model="selectedCategory"
             :disabled="!!error"
             aria-label="Filter by category"
-            class="border rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-black"
+            class="border rounded-lg px-3 py-2 text-sm w-full sm:w-48 focus:outline-none focus:ring-2 focus:ring-black"
           >
             <option v-for="cat in filterCategories" :key="cat" :value="cat">
               {{ cat }}
             </option>
+          </select>
+
+          <!-- Price Filter -->
+          <select
+            v-model="priceFilter"
+            class="border rounded-lg px-3 py-2 text-sm w-full sm:w-40 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="all">All Prices</option>
+            <option value="0-50">Under $50</option>
+            <option value="50-100">$50 – $100</option>
+            <option value="100-500">$100 – $500</option>
+            <option value="500+">$500+</option>
+          </select>
+
+          <!-- Sort -->
+          <select
+            v-model="sortBy"
+            class="border rounded-lg px-3 py-2 text-sm w-full sm:w-36 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="default">Sort</option>
+            <option value="price-asc">Price ↑</option>
+            <option value="price-desc">Price ↓</option>
+            <option value="name-asc">Name A–Z</option>
           </select>
         </div>
       </div>
@@ -115,7 +138,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-const config = useRuntimeConfig()
+const config = useRuntimeConfig();
 import ProductCard from "~/components/ProductCard.vue";
 // const LazyProductCard = defineAsyncComponent(() =>
 //   import('~/components/ProductCard.vue')
@@ -129,12 +152,14 @@ const error = ref(null);
 const searchProductsQuery = ref("");
 const selectedCategory = ref("all");
 const currentPage = ref(1);
+const priceFilter = ref("all");
+const sortBy = ref("default");
 
 const ITEMS_PER_PAGE = 10;
 
 onMounted(async () => {
-    console.log('config.public.apiUrl :', config.public.apiUrl);
-    
+  console.log("config.public.apiUrl :", config.public.apiUrl);
+
   fetchProducts();
 });
 
@@ -176,6 +201,29 @@ const filteredProducts = computed(() => {
     productsList = productsList.filter((p) =>
       p.title.toLowerCase().includes(searchProductsQuery.value.toLowerCase())
     );
+  }
+
+  // Price Filter
+  if (priceFilter.value !== "all") {
+    productsList = productsList.filter((p) => {
+      const price = p.price;
+      if (priceFilter.value === "0-50") return price < 50;
+      if (priceFilter.value === "50-100") return price >= 50 && price <= 100;
+      if (priceFilter.value === "100-500") return price > 100 && price <= 500;
+      if (priceFilter.value === "500+") return price > 500;
+      return true;
+    });
+  }
+
+  // Sorting
+  if (sortBy.value === "price-asc") {
+    productsList.sort((a, b) => a.price - b.price);
+  }
+  if (sortBy.value === "price-desc") {
+    productsList.sort((a, b) => b.price - a.price);
+  }
+  if (sortBy.value === "name-asc") {
+    productsList.sort((a, b) => a.title.localeCompare(b.title));
   }
 
   return productsList;
