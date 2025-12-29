@@ -7,6 +7,9 @@ Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduct
 Make sure to install dependencies:
 
 ```bash
+
+Node.js v18 or above (v22.21.1)
+Npm (10.9.4)
 # npm
 npm install
 
