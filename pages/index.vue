@@ -1,246 +1,256 @@
 <template>
   <div class="min-h-screen bg-gray-50">
     <div class="max-w-7xl mx-auto p-6">
-      <!-- <h1 class="text-3xl font-extrabold mb-8 text-gray-800">
-        🛍️ Product List
-      </h1> -->
-
-      <div class="flex flex-col gap-2 mb-10">
-        <div class="flex items-center gap-3">
-          <div
-            class="h-10 w-10 flex items-center justify-center rounded-lg bg-indigo-50"
-          >
-            🛍️
-          </div>
-
-          <h1 class="text-3xl font-semibold text-slate-800">
-            Product Explorer
-          </h1>
-        </div>
-
-        <p class="text-slate-500 text-sm max-w-xl">
-          Browse high-quality products, filter by category, and find what fits
-          your needs — fast and effortlessly.
-        </p>
-
-        <!-- subtle divider -->
-        <div class="h-px bg-slate-200 mt-4 w-24"></div>
-      </div>
 
       <!-- Search & Filter -->
-      <div class="flex justify-end mb-8">
-        <div
-          class="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl shadow-sm w-full lg:w-auto"
+      <div class="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl shadow-sm justify-end mb-6">
+
+        <!-- Search -->
+        <div class="relative w-full sm:w-64">
+          <input
+            v-model="searchProducts"
+            @input="searchProduct"
+            type="text"
+            placeholder="Search products..."
+            class="border rounded-lg pl-3 pr-9 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-black"
+          />
+
+          <button
+            v-if="searchProducts"
+            @click="resetProductSearch"
+            class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- Category -->
+         <div
+          class="relative w-full sm:w-48"
+          :class="{ 'cat-loading': isCategoryLoading }"
         >
-          <!-- Search Input -->
-          <div class="relative w-full sm:w-64">
-            <input
-              v-model="searchProductsQuery"
-              type="text"
-              :disabled="!!error"
-              placeholder="Search products..."
-              aria-label="Search products"
-              class="border rounded-lg pl-3 pr-9 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-black"
-            />
-
-            <!-- Clear (X) Icon -->
-            <button
-              v-if="searchProductsQuery"
-              @click="resetSearch"
-              type="button"
-              class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition"
-              aria-label="Clear search"
-            >
-              ✕
-            </button>
-          </div>
-
-          <!-- Category Filter -->
           <select
-            v-model="selectedCategory"
-            :disabled="!!error"
-            aria-label="Filter by category"
+            v-model="activeCategory"
+            @change="changeCategory"
             class="border rounded-lg px-3 py-2 text-sm w-full sm:w-48 focus:outline-none focus:ring-2 focus:ring-black"
           >
-            <option v-for="cat in filterCategories" :key="cat" :value="cat">
-              {{ cat }}
+            <option value="all">All Categories</option>
+            <option
+              v-for="cat in categoryList"
+              :key="cat"
+              :value="cat.slug"
+            >
+              {{ cat.name }}
             </option>
-          </select>
-
-          <!-- Price Filter -->
-          <select
-            v-model="priceFilter"
-            class="border rounded-lg px-3 py-2 text-sm w-full sm:w-40 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="all">All Prices</option>
-            <option value="0-50">Under $50</option>
-            <option value="50-100">$50 – $100</option>
-            <option value="100-500">$100 – $500</option>
-            <option value="500+">$500+</option>
-          </select>
-
-          <!-- Sort -->
-          <select
-            v-model="sortBy"
-            class="border rounded-lg px-3 py-2 text-sm w-full sm:w-36 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="default">Sort</option>
-            <option value="price-asc">Price ↑</option>
-            <option value="price-desc">Price ↓</option>
-            <option value="name-asc">Name A–Z</option>
           </select>
         </div>
       </div>
 
-      <!-- States -->
+      <!-- Error -->
       <div v-if="error" class="mt-16 flex justify-center">
-        <div
-          class="max-w-md w-full text-center bg-red-50 border border-red-200 rounded-lg p-6"
-        >
-          <!-- API Error Message -->
+        <div class="max-w-md w-full text-center bg-red-50 border border-red-200 rounded-lg p-6">
           <p class="text-red-600 font-medium mb-3">
             {{ error }}
           </p>
-
-          <!-- Helper text -->
           <p class="text-xs text-slate-500">
             Please check your internet connection or try again later.
           </p>
         </div>
       </div>
 
-      <!-- <p v-if="error" class="text-red-500 font-medium">
-        {{ error }}
-      </p> -->
-
       <!-- Products -->
       <div
         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 product-grid"
-        :class="{ loading: fetchProductsLoading }"
+        :class="{ loading: isProductsLoading }"
       >
-        <ProductCard
-          v-for="product in paginatedProducts"
-          :key="product.id"
-          :product="product"
-        />
+        <template v-if="filteredProducts.length">
+          <ProductCard
+            v-for="product in filteredProducts"
+            :key="product.id"
+            :product="product"
+          />
+        </template>
+
+        <p v-else class="col-span-full text-center text-gray-500 py-12">
+          No products found
+        </p>
       </div>
 
       <!-- Pagination -->
-      <Pagination
-        v-if="totalPages > 1"
-        :totalPages="totalPages"
-        :currentPage="currentPage"
-        @change-pagination="(page) => (currentPage = page)"
-      />
+      <div
+        v-if="totalProducts > pageSize"
+        class="flex justify-center gap-3 mt-8"
+      >
+        <button
+          :disabled="offset === 0"
+          @click="goToPreviousPage"
+          class="px-4 py-2 border rounded disabled:opacity-40"
+        >
+          Prev
+        </button>
+
+        <span class="text-sm flex items-center">
+          Page {{ currentPageNumber }}
+        </span>
+
+        <button
+          :disabled="offset + pageSize >= totalProducts"
+          @click="goToNextPage"
+          class="px-4 py-2 border rounded disabled:opacity-40"
+        >
+          Next
+        </button>
+      </div>
+
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-const config = useRuntimeConfig();
 import ProductCard from "~/components/ProductCard.vue";
-// const LazyProductCard = defineAsyncComponent(() =>
-//   import('~/components/ProductCard.vue')
-// )
-import Pagination from "~/components/common/Pagination.vue";
 
-const products = ref([]);
-const fetchProductsLoading = ref(false);
+/* =====================
+   STATE
+===================== */
+const productList = ref([]);
+const categoryList = ref([]);
 const error = ref(null);
+const isProductsLoading = ref(false);
+const isCategoryLoading = ref(false);
 
-const searchProductsQuery = ref("");
-const selectedCategory = ref("all");
-const currentPage = ref(1);
-const priceFilter = ref("all");
-const sortBy = ref("default");
+const searchProducts = ref("");
+const activeCategory = ref("all");
 
-const ITEMS_PER_PAGE = 10;
+const pageSize = 12;
+const offset = ref(0);
+const totalProducts = ref(0);
+const currentPageNumber = ref(1);
 
-onMounted(async () => {
-  console.log("config.public.apiUrl :", config.public.apiUrl);
-
-  fetchProducts();
+/* =====================
+   COMPUTED
+===================== */
+const filteredProducts = computed(() => {
+  return productList.value ?? [];
 });
 
-const fetchProducts = async () => {
-  fetchProductsLoading.value = true;
+/* =====================
+   API HELPER
+===================== */
+const fetchProductList = async (url) => {
   try {
-    const res = await fetch(`${config.public.apiUrl}/products`);
-    // if (!res.ok) {
-    //   const errorText = await res.text();
-    //   throw new Error(errorText || `Request failed with status ${res.status}`);
-    // }
-    products.value = await res.json();
-  } catch (err) {
-    // error.value = err?.message || "Failed to load products";
+    error.value = null;
+    isProductsLoading.value = true;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    productList.value = data?.products ?? [];
+    totalProducts.value = data?.total ?? 0;
+  } catch {
     error.value = "Failed to load products";
+    productList.value = [];
+    totalProducts.value = 0;
   } finally {
-    fetchProductsLoading.value = false;
+    isProductsLoading.value = false;
   }
 };
 
-/* Categories */
-const filterCategories = computed(() => {
-  const unique = new Set(products.value.map((p) => p.category));
-  return ["all", ...unique];
+/* =====================
+   INITIAL LOAD
+===================== */
+onMounted(async () => {
+  await getCategories();
+  await getAllProductList();
 });
 
-/* Search + Filter */
-const filteredProducts = computed(() => {
-  let productsList = products.value;
+/* =====================
+   LOADERS
+===================== */
+const getAllProductList = async () => {
+  offset.value = 0;
+  currentPageNumber.value = 1;
 
-  if (selectedCategory.value !== "all") {
-    productsList = productsList.filter(
-      (p) => p.category === selectedCategory.value
+  await fetchProductList(
+    `https://dummyjson.com/products?limit=${pageSize}&skip=${offset.value}`
+  );
+};
+
+const getCategories = async () => {
+  isCategoryLoading.value = true;
+  const res = await fetch("https://dummyjson.com/products/categories");
+  isCategoryLoading.value = false;
+  categoryList.value = await res.json();
+};
+
+const searchProduct = async () => {
+  offset.value = 0;
+  currentPageNumber.value = 1;
+
+  if (!searchProducts.value.trim()) {
+    await getAllProductList();
+    return;
+  }
+
+  activeCategory.value = "all";
+
+  await fetchProductList(
+    `https://dummyjson.com/products/search?q=${searchProducts.value}&limit=${pageSize}&skip=0`
+  );
+};
+
+/* =====================
+   CATEGORY
+===================== */
+const changeCategory = async () => {
+  searchProducts.value = "";
+  offset.value = 0;
+  currentPageNumber.value = 1;
+
+  if (activeCategory.value === "all") {
+    await getAllProductList();
+    return;
+  }
+
+  await fetchProductList(
+    `https://dummyjson.com/products/category/${activeCategory.value}?limit=${pageSize}&skip=0`
+  );
+};
+
+/* =====================
+   PAGINATION
+===================== */
+const goToNextPage = async () => {
+  offset.value += pageSize;
+  currentPageNumber.value++;
+  await fetchProductsOnPageChange();
+};
+
+const goToPreviousPage = async () => {
+  offset.value -= pageSize;
+  currentPageNumber.value--;
+  await fetchProductsOnPageChange();
+};
+
+const resetProductSearch = async () => {
+  searchProducts.value = "";
+  await getAllProductList();
+};
+
+
+const fetchProductsOnPageChange = async () => {
+  if (searchProducts.value.trim()) {
+    await fetchProductList(
+      `https://dummyjson.com/products/search?q=${searchProducts.value}&limit=${pageSize}&skip=${offset.value}`
+    );
+  } else if (activeCategory.value !== "all") {
+    await fetchProductList(
+      `https://dummyjson.com/products/category/${activeCategory.value}?limit=${pageSize}&skip=${offset.value}`
+    );
+  } else {
+    await fetchProductList(
+      `https://dummyjson.com/products?limit=${pageSize}&skip=${offset.value}`
     );
   }
-
-  if (searchProductsQuery.value.trim()) {
-    currentPage.value = 1;
-    productsList = productsList.filter((p) =>
-      p.title.toLowerCase().includes(searchProductsQuery.value.toLowerCase())
-    );
-  }
-
-  // Price Filter
-  if (priceFilter.value !== "all") {
-    productsList = productsList.filter((p) => {
-      const price = p.price;
-      if (priceFilter.value === "0-50") return price < 50;
-      if (priceFilter.value === "50-100") return price >= 50 && price <= 100;
-      if (priceFilter.value === "100-500") return price > 100 && price <= 500;
-      if (priceFilter.value === "500+") return price > 500;
-      return true;
-    });
-  }
-
-  // Sorting
-  if (sortBy.value === "price-asc") {
-    productsList.sort((a, b) => a.price - b.price);
-  }
-  if (sortBy.value === "price-desc") {
-    productsList.sort((a, b) => b.price - a.price);
-  }
-  if (sortBy.value === "name-asc") {
-    productsList.sort((a, b) => a.title.localeCompare(b.title));
-  }
-
-  return productsList;
-});
-
-/* Pagination */
-const totalPages = computed(() =>
-  Math.ceil(filteredProducts.value.length / ITEMS_PER_PAGE)
-);
-
-const paginatedProducts = computed(() => {
-  const startIndex = (currentPage.value - 1) * ITEMS_PER_PAGE;
-  return filteredProducts.value.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-});
-
-const resetSearch = () => {
-  searchProductsQuery.value = "";
-  currentPage.value = 1;
 };
 </script>

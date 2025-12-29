@@ -14,7 +14,7 @@
     <!-- Image -->
     <div class="h-52 bg-gray-100 flex items-center justify-center overflow-hidden">
       <img
-        :src="product.image"
+        :src="product.thumbnail"
         :alt="product.title"
         loading="lazy"
         class="h-40 object-contain transition-transform duration-300 group-hover:scale-110"
@@ -38,12 +38,6 @@
         <p class="text-lg font-bold text-black">
           ${{ product.price }}
         </p>
-
-        <span
-          class="text-xs px-3 py-1 rounded-full bg-black text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-        >
-          View
-        </span>
       </div>
     </div>
   </div>
