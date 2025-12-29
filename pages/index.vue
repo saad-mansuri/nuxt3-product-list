@@ -58,7 +58,7 @@
         </div>
       </div>
 
-      <!-- Products -->
+      <!-- Card Products -->
       <div
         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 product-grid"
         :class="{ loading: isProductsLoading }"
@@ -109,10 +109,8 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import ProductCard from "~/components/ProductCard.vue";
+const config = useRuntimeConfig();
 
-/* =====================
-   STATE
-===================== */
 const productList = ref([]);
 const categoryList = ref([]);
 const error = ref(null);
@@ -127,16 +125,31 @@ const offset = ref(0);
 const totalProducts = ref(0);
 const currentPageNumber = ref(1);
 
-/* =====================
-   COMPUTED
-===================== */
 const filteredProducts = computed(() => {
   return productList.value ?? [];
 });
 
-/* =====================
-   API HELPER
-===================== */
+onMounted(async () => {
+  await getCategories();
+  await getAllProductList();
+});
+
+const getCategories = async () => {
+  isCategoryLoading.value = true;
+  const res = await fetch(`${config.public.apiUrl}/products/categories`);
+  isCategoryLoading.value = false;
+  categoryList.value = await res.json();
+};
+
+const getAllProductList = async () => {
+  offset.value = 0;
+  currentPageNumber.value = 1;
+
+  await fetchProductList(
+    `${config.public.apiUrl}/products?limit=${pageSize}&skip=${offset.value}`
+  );
+};
+
 const fetchProductList = async (url) => {
   try {
     error.value = null;
@@ -156,33 +169,6 @@ const fetchProductList = async (url) => {
   }
 };
 
-/* =====================
-   INITIAL LOAD
-===================== */
-onMounted(async () => {
-  await getCategories();
-  await getAllProductList();
-});
-
-/* =====================
-   LOADERS
-===================== */
-const getAllProductList = async () => {
-  offset.value = 0;
-  currentPageNumber.value = 1;
-
-  await fetchProductList(
-    `https://dummyjson.com/products?limit=${pageSize}&skip=${offset.value}`
-  );
-};
-
-const getCategories = async () => {
-  isCategoryLoading.value = true;
-  const res = await fetch("https://dummyjson.com/products/categories");
-  isCategoryLoading.value = false;
-  categoryList.value = await res.json();
-};
-
 const searchProduct = async () => {
   offset.value = 0;
   currentPageNumber.value = 1;
@@ -195,13 +181,10 @@ const searchProduct = async () => {
   activeCategory.value = "all";
 
   await fetchProductList(
-    `https://dummyjson.com/products/search?q=${searchProducts.value}&limit=${pageSize}&skip=0`
+    `${config.public.apiUrl}/products/search?q=${searchProducts.value}&limit=${pageSize}&skip=0`
   );
 };
 
-/* =====================
-   CATEGORY
-===================== */
 const changeCategory = async () => {
   searchProducts.value = "";
   offset.value = 0;
@@ -213,13 +196,10 @@ const changeCategory = async () => {
   }
 
   await fetchProductList(
-    `https://dummyjson.com/products/category/${activeCategory.value}?limit=${pageSize}&skip=0`
+    `${config.public.apiUrl}/products/category/${activeCategory.value}?limit=${pageSize}&skip=0`
   );
 };
 
-/* =====================
-   PAGINATION
-===================== */
 const goToNextPage = async () => {
   offset.value += pageSize;
   currentPageNumber.value++;
@@ -237,19 +217,18 @@ const resetProductSearch = async () => {
   await getAllProductList();
 };
 
-
 const fetchProductsOnPageChange = async () => {
   if (searchProducts.value.trim()) {
     await fetchProductList(
-      `https://dummyjson.com/products/search?q=${searchProducts.value}&limit=${pageSize}&skip=${offset.value}`
+      `${config.public.apiUrl}/products/search?q=${searchProducts.value}&limit=${pageSize}&skip=${offset.value}`
     );
   } else if (activeCategory.value !== "all") {
     await fetchProductList(
-      `https://dummyjson.com/products/category/${activeCategory.value}?limit=${pageSize}&skip=${offset.value}`
+      `${config.public.apiUrl}/products/category/${activeCategory.value}?limit=${pageSize}&skip=${offset.value}`
     );
   } else {
     await fetchProductList(
-      `https://dummyjson.com/products?limit=${pageSize}&skip=${offset.value}`
+      `${config.public.apiUrl}/products?limit=${pageSize}&skip=${offset.value}`
     );
   }
 };
