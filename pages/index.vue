@@ -9,7 +9,7 @@
         <div class="relative w-full sm:w-64">
           <input
             v-model="searchProducts"
-            @input="searchProduct"
+            @input="debouncedSearchProduct"
             type="text"
             placeholder="Search products..."
             class="border rounded-lg pl-3 pr-9 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-black"
@@ -120,10 +120,21 @@ const isCategoryLoading = ref(false);
 const searchProducts = ref("");
 const activeCategory = ref("all");
 
-const pageSize = 12;
+const pageSize = 10;
 const offset = ref(0);
 const totalProducts = ref(0);
 const currentPageNumber = ref(1);
+
+function debounce(fn, delay = 400) {
+  let timer;
+
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      fn.apply(this, args);
+    }, delay);
+  };
+}
 
 const filteredProducts = computed(() => {
   return productList.value ?? [];
@@ -184,6 +195,8 @@ const searchProduct = async () => {
     `${config.public.apiUrl}/products/search?q=${searchProducts.value}&limit=${pageSize}&skip=0`
   );
 };
+
+const debouncedSearchProduct = debounce(searchProduct, 400);
 
 const changeCategory = async () => {
   searchProducts.value = "";
